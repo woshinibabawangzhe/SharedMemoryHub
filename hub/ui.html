@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SharedMemoryHub 个人记忆治理看板 v0.3.0</title>
+  <style>
+    :root {
+      --bg: #0f172a; --card: #1e293b; --border: #334155;
+      --text: #f8fafc; --muted: #94a3b8; --primary: #3b82f6;
+      --success: #10b981; --warn: #f59e0b; --danger: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Microsoft YaHei", system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    header { padding: 14px 24px; background: #0b1120; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    header h1 { margin: 0; font-size: 18px; }
+    .container { max-width: 1360px; margin: 18px auto; padding: 0 18px; display: grid; grid-template-columns: 340px 1fr; gap: 18px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .card h2 { margin: 0 0 12px 0; font-size: 15px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-top: 8px; margin-bottom: 4px; }
+    input, select, textarea { width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border); background: #0f172a; color: var(--text); font-size: 13px; }
+    button { cursor: pointer; padding: 7px 12px; border-radius: 6px; border: none; font-size: 12px; font-weight: 600; background: var(--primary); color: #fff; margin-right: 6px; margin-top: 6px; }
+    button.warn { background: var(--warn); color: #111827; }
+    button.danger { background: var(--danger); }
+    button.success { background: var(--success); }
+    .badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; margin-right: 4px; background: #334155; }
+    .badge.active { background: #065f46; color: #a7f3d0; }
+    .badge.locked { background: #1e40af; color: #bfdbfe; }
+    .badge.conflict { background: #92400e; color: #fde68a; }
+    .mem-item { border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 10px; background: #111827; }
+    .mem-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+    .mem-content { font-size: 13px; color: #cbd5e1; white-space: pre-wrap; margin: 6px 0; }
+    pre { background: #090d16; padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 12px; color: #a7f3d0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SharedMemoryHub 个人上下文与记忆治理看板 (v0.3.0)</h1>
+    <div id="healthBanner" style="font-size:12px;color:var(--muted);">正在检查网关状态...</div>
+  </header>
+  <div class="container">
+    <div>
+      <div class="card">
+        <h2>管理员登录</h2>
+        <label>管理员口令 (Admin Passcode)</label>
+        <input type="password" id="passcodeInput" placeholder="输入管理员口令..." />
+        <button id="loginButton">解锁管理权限</button>
+        <div id="authStatus" style="font-size:12px;margin-top:8px;color:var(--muted);">当前状态：未登录</div>
+      </div>
+
+      <div class="card">
+        <h2>项目工作区绑定</h2>
+        <label>项目标识 (project_id)</label>
+        <input type="text" id="projId" placeholder="例如: SharedMemoryHub" />
+        <label>工作区绝对路径 (workspace_path)</label>
+        <input type="text" id="projPath" placeholder="例如: E:/AI运行区/SharedMemoryHub" />
+        <button id="bindButton">保存项目绑定</button>
+      </div>
+
+      <div class="card">
+        <h2>新建记忆</h2>
+        <label>作用范围 (scope)</label>
+        <select id="newScope">
+          <option value="user_global">个人全局</option><option value="agent_private">客户端私有</option>
+          <option value="project">project (项目级)</option>
+        </select>
+        <label>主体 (subject)</label>
+        <select id="newSubject">
+          <option value="user">user</option>
+          <option value="project">project</option>
+          <option value="shared">shared</option>
+        </select>
+        <label>类别 (kind)</label>
+        <select id="newKind">
+          <option value="preference">preference (长期偏好)</option>
+          <option value="decision">decision (架构/技术决策)</option>
+          <option value="fact">fact (项目事实)</option>
+          <option value="experience">experience (排障经验)</option><option value="context">背景</option><option value="handoff">交接（限时）</option><option value="rule_candidate">规则候选</option>
+        </select>
+        <label>工作区路径 (project 范围必填)</label>
+        <input type="text" id="newWorkspace" placeholder="E:/AI运行区/SharedMemoryHub" />
+        <label>主题键 (topic_key)</label>
+        <input type="text" id="newTopic" placeholder="例如: lang-preference" />
+        <label>标题 (title)</label>
+        <input type="text" id="newTitle" placeholder="简明标题" />
+        <label>正文 (content)</label>
+        <textarea id="newContent" rows="3" placeholder="权威记忆内容..."></textarea>
+        <button class="success" id="createButton">直接写入并锁定 (locked=1)</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>记忆检索、提案裁决、Undo 与彻底销毁 (Purge)</h2>
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <input type="text" id="filterQuery" placeholder="按标题/正文/topic_key/memory_id 过滤..." />
+          <button id="refreshButton">刷新列表</button>
+        </div>
+        <div id="memoryList">请先在左侧输入管理员口令解锁看板。</div>
+      </div>
+      <div class="card" id="detailPanel"></div>
+      <div class="card">
+        <h2>操作回执与版本历史详情</h2>
+        <pre id="receiptBox">等待操作...</pre>
+      </div>
+    </div>
+  </div>
+
+  <script src="/ui.js" defer></script>
+</body>
+</html>

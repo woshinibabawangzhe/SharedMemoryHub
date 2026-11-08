@@ -1,0 +1,161 @@
+{
+  "documents": [
+    [
+      "bm_01",
+      "网关端口与本地监听规范",
+      "FastAPI 统一网关固定监听 127.0.0.1:8765，严禁绑定公网网卡。"
+    ],
+    [
+      "bm_02",
+      "预写式哈希链墓碑机制",
+      "Purge 删除前必须先追加写入 data/tombstones/purge_registry.jsonl 并执行 os.fsync。"
+    ],
+    [
+      "bm_03",
+      "锁表与并发冲突处理",
+      "SQLite 启用 WAL 与 busy_timeout=5000，防止 SQLITE_BUSY 锁表异常。"
+    ],
+    [
+      "bm_04",
+      "幂等键防重放规则",
+      "requests 表记录 request_key 与 body_hash，Purge 后状态码锁定为 410。"
+    ],
+    [
+      "bm_05",
+      "版本回滚与状态机 Undo",
+      "Undo 操作根据 revisions 快照恢复上一版本正文、锁定状态与待裁决提案。"
+    ],
+    [
+      "bm_06",
+      "向量索引重建一致性协议",
+      "全量重建期间设置 maintenance_mode=reindexing 冻结写入，核验 manifest_sha256 后原子切换。"
+    ],
+    [
+      "bm_07",
+      "跨项目权限隔离契约",
+      "服务端通过 project_bindings 强制校验 workspace_path，拒绝客户端伪造 project_id。"
+    ],
+    [
+      "bm_08",
+      "管理员口令校验与存储",
+      "config/admin_auth.json 仅保存 hashlib.scrypt 盐值哈希，磁盘零明文管理员 Token。"
+    ],
+    [
+      "bm_09",
+      "乐观锁冲突错误码 RevisionConflict",
+      "当 expected_revision 与当前 revision 不一致时返回 409 RevisionConflict。"
+    ],
+    [
+      "bm_10",
+      "人工锁定保护错误码 LockedConflict",
+      "当记忆被标记为 locked=1 时，AI 修改或删除请求返回 409 LockedConflict。"
+    ],
+    [
+      "bm_11",
+      "向量检索管理器 QdrantManager",
+      "QdrantManager 负责管理 1024 维 Cosine 向量集合与 UUIDv5 点标识映射。"
+    ],
+    [
+      "bm_12",
+      "设计规格书基线版本",
+      "当前实施基线为 共同实施规格书 v0.2.1-candidate，包含 14 项 P0/P1 工程闭环。"
+    ],
+    [
+      "bm_13",
+      "本地嵌入模型版本锁定",
+      "语义编码固定使用本地 Qwen/Qwen3-Embedding-0.6B 模型并开启 HF_HUB_OFFLINE=1。"
+    ],
+    [
+      "bm_14",
+      "离线降级 keyword_only 检索策略",
+      "当 Qdrant 不可达或推理超时熔断时，检索自动降级为 keyword_only 模式。"
+    ],
+    [
+      "bm_15",
+      "FTS5 trigram 与双字中文短词检索",
+      "三字符以上词条走 FTS5 trigram 索引，双字中文短词走参数化 LIKE 精确补充。"
+    ]
+  ],
+  "queries": [
+    [
+      "网关",
+      "bm_01"
+    ],
+    [
+      "墓碑",
+      "bm_02"
+    ],
+    [
+      "锁表",
+      "bm_03"
+    ],
+    [
+      "幂等",
+      "bm_04"
+    ],
+    [
+      "回滚",
+      "bm_05"
+    ],
+    [
+      "向量索引重建",
+      "bm_06"
+    ],
+    [
+      "跨项目权限隔离",
+      "bm_07"
+    ],
+    [
+      "预写式哈希链",
+      "bm_02"
+    ],
+    [
+      "管理员口令校验",
+      "bm_08"
+    ],
+    [
+      "SQLITE_BUSY",
+      "bm_03"
+    ],
+    [
+      "RevisionConflict",
+      "bm_09"
+    ],
+    [
+      "LockedConflict",
+      "bm_10"
+    ],
+    [
+      "QdrantManager",
+      "bm_11"
+    ],
+    [
+      "scrypt",
+      "bm_08"
+    ],
+    [
+      "data/tombstones/purge_registry.jsonl",
+      "bm_02"
+    ],
+    [
+      "v0.2.1-candidate",
+      "bm_12"
+    ],
+    [
+      "127.0.0.1:8765",
+      "bm_01"
+    ],
+    [
+      "Qwen3-Embedding-0.6B",
+      "bm_13"
+    ],
+    [
+      "如何防止AI修改已锁定的记忆 LockedConflict",
+      "bm_10"
+    ],
+    [
+      "离线降级 keyword_only 检索策略",
+      "bm_14"
+    ]
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "version": "0.1.0",
+  "service_version": "0.3.0",
+  "portability_revision": "0.1.0",
+  "codex_adapter_version": "0.1.1",
+  "repository": "woshinibabawangzhe/SharedMemoryHub",
+  "platform": "Windows x64 / Python 3.13",
+  "python_observed": "3.13.9",
+  "lock_sha256": "e0264492a0f2523f8cd03297c973a1077139be65a456e7cb57c7646baefb6837",
+  "model_lock_sha256": "4adf961880990f62995532d49a58df9e4f286df140bf13fd41270fa1e488f112",
+  "qdrant_image": "qdrant/qdrant@sha256:318c11b72aaab96b36e9662ad244de3cabd0653a1b942d4e8191f18296c81af0",
+  "data_in_git": false,
+  "credentials_in_git": false,
+  "default_runtime": "runtime/codex",
+  "restore_contract": "docs/换机部署与数据恢复-v0.1.0.md",
+  "source_roots": [
+    "hub",
+    "clients",
+    "scripts",
+    "tests",
+    "docs",
+    "design"
+  ],
+  "not_qualified": [
+    "actual different computer",
+    "fresh desktop chat behavior",
+    "Antigravity joint integration"
+  ]
+}

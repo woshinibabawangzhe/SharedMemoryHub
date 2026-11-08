@@ -1,0 +1,26 @@
+# 本机运行状态、认证、依赖与合成夹具不进入源码存档。
+.venv*/
+__pycache__/
+*.pyc
+cache/
+models/
+data/
+config/
+exports/
+backups/
+.env
+.env.*
+# 私有运行数据与历史证据均留本机，源码上传只采用显式白名单。
+runtime/
+receipts/
+*.writing
+receipts/**/synthetic/
+receipts/**/live-*/
+receipts/**/config/
+receipts/**/sqlite/
+receipts/**/data/
+receipts/**/workspaces/
+receipts/**/workspace/
+receipts/**/qdrant/
+receipts/**/browser-config.json
+receipts/**/current-live.json
