@@ -1,0 +1,3 @@
+# 锁文件的SHA按原始字节核验，不能由Git换行设置改写。
+requirements.lock -text
+model.lock.json -text

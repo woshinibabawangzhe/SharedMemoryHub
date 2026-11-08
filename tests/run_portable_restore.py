@@ -41,7 +41,7 @@ def main():
                 time.sleep(.25)
             else:raise RuntimeError('isolated_qdrant_not_ready')
         control=ROOT/'scripts/runtime_control.py'
-        run([sys.executable,'-X','utf8','-B',control,'start','--runtime',runtime,'--port',a.port,'--qdrant-port',a.qdrant_port,'--prefix',prefix,'--device','cuda','--python',sys.executable,'--model-dir',checked_asset(a.model_dir)]);started=True
+        run([sys.executable,'-X','utf8','-B',control,'start','--runtime',runtime,'--port',a.port,'--qdrant-port',a.qdrant_port,'--prefix',prefix,'--device','cuda','--python',sys.executable,'--model-dir',checked_asset(a.model_dir)],timeout=110);started=True
         deadline=time.monotonic()+120
         with httpx.Client(trust_env=False) as client:
             while time.monotonic()<deadline:

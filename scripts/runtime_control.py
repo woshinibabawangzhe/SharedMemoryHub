@@ -51,7 +51,7 @@ def start(a):
     if info['identity'] is None:raise RuntimeError('process_identity_unknown')
     pidfile.write_text(json.dumps(info,indent=2),encoding='utf-8')
     import httpx
-    deadline=time.monotonic()+45
+    deadline=time.monotonic()+90
     with httpx.Client(trust_env=False) as client:
         while time.monotonic()<deadline:
             if proc.poll() is not None:raise RuntimeError('service_start_failed; inspect runtime/logs/service.stderr.log')

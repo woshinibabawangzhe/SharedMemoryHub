@@ -13,7 +13,7 @@ def main():
     for key,suffix in {'TEMP':'tmp','TMP':'tmp','PIP_CACHE_DIR':'pip','HF_HOME':'hf','TORCH_HOME':'torch','XDG_CACHE_HOME':'xdg'}.items():
         path=checked_path(ROOT/'cache'/suffix);path.mkdir(parents=True,exist_ok=True);os.environ[key]=str(path)
     os.environ.update(SMH_RUNTIME_ROOT=str(runtime),SMH_ORIGIN=f'http://127.0.0.1:{a.port}',SMH_QDRANT_URL=f'http://127.0.0.1:{a.qdrant_port}',
-        SMH_COLLECTION_PREFIX=a.prefix,SMH_DEVICE=a.device,HF_HUB_OFFLINE='1',TRANSFORMERS_OFFLINE='1',PYTHONDONTWRITEBYTECODE='1')
+        SMH_COLLECTION_PREFIX=a.prefix,SMH_DEVICE=a.device,SMH_STARTUP_WARMUP='1',HF_HUB_OFFLINE='1',TRANSFORMERS_OFFLINE='1',PYTHONDONTWRITEBYTECODE='1')
     if a.model_dir:os.environ['SMH_MODEL_DIR']=str(checked_asset(a.model_dir))
     import uvicorn
     from hub.app import create_hub_app

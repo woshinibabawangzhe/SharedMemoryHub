@@ -42,7 +42,7 @@ def ready_health():
         if result.get('http_status')!=200:raise RuntimeError('model_warmup_unconfirmed; service preserved for explicit stop')
         with httpx.Client(trust_env=False,timeout=5) as client:
             health=client.get('http://127.0.0.1:8765/v1/health').json()
-    if health.get('qdrant')!='ok' or not health.get('embedding_model_loaded') or health.get('embedding_device')!='cuda':
+    if health.get('qdrant')!='ok' or not health.get('embedding_model_loaded') or health.get('embedding_engine_wedged') or health.get('embedding_device')!='cuda':
         raise RuntimeError('daily_readiness_unconfirmed')
     return health
 
@@ -71,7 +71,7 @@ def control(action):
         if servicefile.is_file():
             previous=json.loads(servicefile.read_text(encoding='utf-8'))
             if identity(previous['pid'])==previous['identity']:return {'status':'already_running','health':ready_health(),'ui':'http://127.0.0.1:8765/ui'}
-        result=json.loads(run([sys.executable,'-X','utf8','-B',str(ROOT/'scripts/runtime_control.py'),'start','--runtime',str(RUNTIME),'--port','8765','--qdrant-port','6333','--prefix','smh_codex_primary','--device','cuda'],65))
+        result=json.loads(run([sys.executable,'-X','utf8','-B',str(ROOT/'scripts/runtime_control.py'),'start','--runtime',str(RUNTIME),'--port','8765','--qdrant-port','6333','--prefix','smh_codex_primary','--device','cuda'],110))
         result['health']=ready_health();result['ui']='http://127.0.0.1:8765/ui';return result
     result={'status':'not_started'}
     if servicefile.is_file():result=json.loads(run([sys.executable,'-X','utf8','-B',str(ROOT/'scripts/runtime_control.py'),'stop','--runtime',str(RUNTIME)],65))

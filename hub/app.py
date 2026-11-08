@@ -86,6 +86,13 @@ def create_hub_app(
                 await run_in_threadpool(qdrant_inst.ensure_collection, db_inst.get_meta("active_index_generation", DEFAULT_GENERATION))
             except Exception:
                 pass  # Explicit degraded health, never an alternative vector store.
+            if os.environ.get("SMH_STARTUP_WARMUP") == "1":
+                # Explicit service startup owns cold loading, before Worker/read traffic.
+                # Ordinary client calls retain their short deadlines and never start services.
+                try:
+                    await run_in_threadpool(embed_inst.encode_one, "记忆中心启动预热", timeout_sec=60.0)
+                except Exception:
+                    pass  # Health/readiness reports the actual degraded state.
             if auto_start_worker:
                 worker_inst.start_background()
             yield
