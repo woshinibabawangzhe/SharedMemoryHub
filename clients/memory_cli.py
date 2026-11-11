@@ -58,7 +58,7 @@ def call_hub(
         "Cache-Control": "no-store, no-cache, must-revalidate",
     }
     try:
-        with httpx.Client(base_url=base_url.rstrip("/"), timeout=timeout_sec, trust_env=False) as client:
+        with httpx.Client(base_url=base_url.rstrip("/"), timeout=httpx.Timeout(connect=min(timeout_sec,1.5),read=5.0,write=5.0,pool=1.5), trust_env=False) as client:
             if method.upper() == "GET":
                 resp = client.get(path, params=params, headers=headers)
             else:
@@ -70,7 +70,7 @@ def call_hub(
             data["http_status"] = resp.status_code
             return data
     except (httpx.ConnectError, httpx.TimeoutException, httpx.NetworkError, OSError) as exc:
-        writing = path == "/v1/memory/write"
+        writing = method.upper() not in ('GET','HEAD') and path not in ('/v1/memory/search','/v1/memory/precheck','/v1/admin/query')
         return {
             "status": "WRITE_RESULT_UNKNOWN" if writing else "MEMORY_HUB_UNAVAILABLE",
             "request_key": (payload or {}).get("request_key") if writing else None,

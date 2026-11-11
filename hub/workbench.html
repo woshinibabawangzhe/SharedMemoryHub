@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>个人记忆档案工作台</title>
+<link rel="stylesheet" href="/workbench.css"><script src="/workbench.js" defer></script>
+</head>
+<body>
+<!-- 浏览优先：现有分类与条目构成目录，宽幅工作区承担列表、阅读和编辑。
+保留既有深灰主题、纯文本正文、真实权限与修订；搜索和筛选为辅助入口。UI v0.6.0。 -->
+<section id="login" class="login">
+  <form id="login-form" class="stack">
+    <h1>打开你的记忆档案</h1>
+    <p class="muted">正文、来源与版本保存在本机。使用已有管理员口令登录。</p>
+    <label for="passcode">管理员口令</label>
+    <input id="passcode" type="password" autocomplete="current-password" required minlength="12">
+    <button class="primary" type="submit">进入工作台</button>
+    <p id="login-error" role="alert"></p>
+  </form>
+</section>
+<div id="app" class="app" hidden>
+  <header class="app-header">
+    <div class="brand"><strong>记忆档案</strong><span class="muted">个人资料工作台 · 0.6.0</span></div>
+    <nav id="nav" aria-label="主导航"></nav>
+    <div class="row header-actions"><button id="new-draft" class="primary">先写下来</button><button id="new-memory">直接记一条</button><button id="logout" class="quiet">退出登录</button></div>
+  </header>
+  <div class="app-body">
+    <aside class="directory" aria-label="分类与条目目录"><div class="directory-heading"><h2>资料目录</h2><button id="close-directory" class="quiet" aria-label="收起分类目录">收起</button></div><div id="directory"></div></aside>
+    <main>
+      <header class="content-heading"><div class="row"><button id="show-directory" class="quiet" aria-expanded="false">分类目录</button><h1 id="page-title">记忆库</h1></div><button id="refresh" class="quiet">刷新</button></header>
+      <div id="message" role="status" aria-live="polite" hidden></div>
+      <div id="workspace" class="workspace"></div>
+    </main>
+  </div>
+  <footer><span id="health">正在读取服务状态</span><span>真实数据 · 刷新保留已保存内容</span></footer>
+</div>
+</body>
+</html>

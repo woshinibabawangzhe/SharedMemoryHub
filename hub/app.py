@@ -17,6 +17,9 @@ from .embedder import EmbeddingEngine, QdrantManager
 from .worker import SerialIndexWorker, SingleInstanceFileLock
 
 UI_HTML_PATH = Path(__file__).parent / "ui.html"
+# Immutable bundle selection keeps already-running legacy processes on their
+# matching assets while this source version is prepared for explicit migration.
+WORKBENCH_ASSET_PATH = Path(__file__).parent / "workbench-v0.7.0"
 
 
 def create_hub_app(
@@ -90,6 +93,9 @@ def create_hub_app(
                 # Explicit service startup owns cold loading, before Worker/read traffic.
                 # Ordinary client calls retain their short deadlines and never start services.
                 try:
+                    # Cold Python/Transformers loading is separate from inference.
+                    # Otherwise a slow first import permanently wedges a healthy model.
+                    await run_in_threadpool(embed_inst.ensure_loaded)
                     await run_in_threadpool(embed_inst.encode_one, "记忆中心启动预热", timeout_sec=60.0)
                 except Exception:
                     pass  # Health/readiness reports the actual degraded state.
@@ -104,7 +110,7 @@ def create_hub_app(
             if acquire_process_lock:
                 proc_lock.release()
 
-    app = FastAPI(title="SharedMemoryHub", version="0.3.0", lifespan=lifespan)
+    app = FastAPI(title="SharedMemoryHub", version="0.6.0", lifespan=lifespan)
 
     @app.exception_handler(HubError)
     async def hub_error_handler(request: Request, exc: HubError):
@@ -148,6 +154,10 @@ def create_hub_app(
             origin_header=request.headers.get("Origin"),
         )
 
+    from .draft_routes import register_draft_routes
+    register_draft_routes(app,lambda:db_inst,_require_admin,_resolve_caller,
+        lambda:{'runtime':str(db_inst.db_path.parents[2]),'auth_dir':str(auth_inst.client_tokens_path.parent),'base_url':auth_inst.allowed_origin,'project_root':str(PROJECT_ROOT)})
+
     @app.middleware("http")
     async def protection_headers(request, call_next):
         response = await call_next(request)
@@ -160,13 +170,21 @@ def create_hub_app(
     def serve_ui_script():
         return FileResponse(UI_HTML_PATH.with_suffix(".js"), media_type="application/javascript")
 
+    @app.get('/workbench.js')
+    def workbench_script():
+        return FileResponse(WORKBENCH_ASSET_PATH/'workbench.js',media_type='application/javascript')
+
+    @app.get('/workbench.css')
+    def workbench_style():
+        return FileResponse(WORKBENCH_ASSET_PATH/'workbench.css',media_type='text/css')
+
     @app.get('/favicon.ico')
     def favicon():
         return Response(status_code=204)
 
     @app.get("/ui", response_class=HTMLResponse)
     def serve_ui():
-        return HTMLResponse(content=UI_HTML_PATH.read_text(encoding="utf-8"))
+        return HTMLResponse(content=(WORKBENCH_ASSET_PATH/'workbench.html').read_text(encoding="utf-8"))
 
     @app.get("/v1/health")
     def get_health():
@@ -183,7 +201,8 @@ def create_hub_app(
         q_ok = qdrant_inst.is_healthy()
         return {
             "status": "ok" if (q_ok and not embed_inst.wedged) else "degraded",
-            "version": "0.3.0",
+            "version": "0.6.0",
+            "schema_version": 600,
             "sqlite": "ok",
             "qdrant": "ok" if q_ok else "unreachable",
             "embedding_model_loaded": embed_inst.loaded,
@@ -285,6 +304,49 @@ def create_hub_app(
             raise HubError(422, "invalid_project_binding", "project_id 与 workspace_path 均不能为空。")
         return db_inst.register_project_binding(project_id=pid, workspace_path=wpath)
 
+    @app.get('/v1/admin/session')
+    def admin_session(request: Request):
+        try:
+            _require_admin(request)
+        except HubError as exc:
+            if exc.status_code==401:
+                return {'status':'anonymous'}
+            raise
+        sid=request.cookies.get('smh_admin_session') or request.headers.get('X-Admin-Session') or request.headers.get('Authorization','')[7:]
+        return {'status':'ok','csrf_token':auth_inst._sessions[sid]['csrf_token']}
+
+    @app.post('/v1/admin/logout')
+    def admin_logout(request: Request,response: Response):
+        _require_admin(request)
+        auth_inst._sessions.pop(request.headers.get('X-Admin-Session') or request.cookies.get('smh_admin_session'),None)
+        response.delete_cookie('smh_admin_session')
+        return {'status':'logged_out'}
+
+    @app.get('/v1/admin/catalog')
+    def admin_catalog(request: Request):
+        _require_admin(request)
+        return db_inst.workbench_catalog()
+
+    @app.post('/v1/admin/query')
+    def admin_query(request: Request,body: Dict[str,Any]):
+        _require_admin(request)
+        return db_inst.workbench_list(body.get('filters'),body.get('cursor'),body.get('limit',50),_vector_search_bridge)
+
+    @app.post('/v1/admin/domains')
+    def admin_domains(request: Request,body: Dict[str,Any]):
+        _require_admin(request)
+        return db_inst.workbench_domain(body)
+
+    @app.post('/v1/admin/views')
+    def admin_views(request: Request,body: Dict[str,Any]):
+        _require_admin(request)
+        return db_inst.workbench_save_view(body)
+
+    @app.get('/v1/admin/sources')
+    def admin_sources(request: Request,source_id: Optional[str]=None,revision: Optional[int]=None):
+        _require_admin(request)
+        return db_inst.workbench_sources(source_id,revision)
+
     @app.get("/v1/admin/memories")
     def admin_list_memories(
         request: Request,
@@ -310,7 +372,9 @@ def create_hub_app(
     @app.get("/v1/admin/memory/{memory_id}/detail")
     def admin_memory_detail(memory_id: str, request: Request):
         _require_admin(request)
-        return db_inst.get_memory_detail_for_admin(memory_id=memory_id)
+        detail=db_inst.get_memory_detail_for_admin(memory_id=memory_id)
+        detail['relations']=db_inst.memory_relations(memory_id)
+        return detail
 
     @app.post("/v1/admin/memory/{memory_id}/undo")
     def admin_memory_undo(memory_id: str, request: Request, body: Dict[str, Any]):
@@ -362,6 +426,8 @@ def create_hub_app(
             final_title=body.get("final_title"),
             final_content=body.get("final_content"),
             actor_id=ident.actor_id,
+            final_fields=body.get('final_fields'),
+            confirm_scope_change=body.get('confirm_scope_change') is True,
         )
 
     @app.post("/v1/admin/memory/{memory_id}/purge")

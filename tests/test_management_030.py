@@ -24,9 +24,19 @@ class Management(Safety):
         for changes in ({'scope':'user_global'},{'kind':'rule_candidate'}):
             m=self.agent(**changes);self.assertEqual(m['current_state'],'paused')
             self.db.admin_resolve_conflict(m['memory_id'],m['proposal_id'],'accept',1)
-            self.assertEqual(self.row(m)['state'],'active')
+            self.assertEqual(self.row(m)['state'],'paused' if changes.get('kind')=='rule_candidate' else 'active')
     def test_inference_stays_hypothesis(self):
         m=self.agent(source={'origin_type':'model_inference'});self.assertEqual(m['effective_confidence'],'hypothesis')
+    def test_hypothesis_approval_does_not_promote_truth(self):
+        for index,changes in enumerate(({'confidence':'hypothesis'},{'source':{'origin_type':'model_inference'}})):
+            m=self.agent(scope='user_global',title=f'猜测批准边界-{index}',**changes);mid=m['memory_id']
+            self.db.admin_resolve_conflict(mid,m['proposal_id'],'accept',1)
+            self.assertEqual((self.row(m)['state'],self.row(m)['confidence']),('active','hypothesis'))
+            found=self.db.search_memories('agent_client','codex','codex','简体中文',workspace_path=str(self.ws))
+            self.assertNotIn(mid,[r['memory_id'] for r in found['items']])
+            self.db.admin_undo(mid,2);self.assertEqual((self.row(m)['state'],self.row(m)['confidence']),('paused','hypothesis'))
+            self.db.admin_restore(mid,2,3);self.assertEqual(self.row(m)['confidence'],'hypothesis')
+            self.assertEqual(self.row(m)['state'],'paused')
     def test_missing_session_cannot_inherit_write_authority(self):
         m=self.agent()
         r=self.db.write_memory('agent_client','codex','codex',{'request_key':uuid.uuid4().hex,'operation':'update','memory_id':m['memory_id'],

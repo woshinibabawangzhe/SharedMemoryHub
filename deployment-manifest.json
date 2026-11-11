@@ -1,6 +1,7 @@
 {
   "version": "0.1.0",
-  "service_version": "0.3.0",
+  "service_version": "0.5.0",
+  "workbench_version": "0.6.0",
   "portability_revision": "0.1.0",
   "codex_adapter_version": "0.1.1",
   "repository": "woshinibabawangzhe/SharedMemoryHub",
@@ -25,5 +26,11 @@
     "actual different computer",
     "fresh desktop chat behavior",
     "Antigravity joint integration"
-  ]
+  ],
+  "schema_version": 500,
+  "manual_workbench_runtime": "runtime/personal-0.4.0",
+  "harness_center_routing": "paused",
+  "help_source": "docs/使用与系统说明.md",
+  "candidate_manifest": "hub/workbench-v0.7.0/release.json",
+  "release_state": "awaiting_acceptance"
 }

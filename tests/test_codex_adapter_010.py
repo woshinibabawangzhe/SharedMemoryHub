@@ -16,6 +16,10 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 ADAPTER = Path('C:/Users/ZhuanZ/.codex/tools/shared-memory-hub/cli.py')
+# Historical Harness integration is paused. Absence is an explicit unverified
+# integration, not a reason to recreate a retired user control asset.
+if not ADAPTER.is_file():
+    raise unittest.SkipTest('历史Codex适配入口已停用且不存在；本轮不恢复，真实Harness接入未验证。')
 spec = importlib.util.spec_from_file_location('codex_memory_adapter', ADAPTER)
 adapter = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(adapter)

@@ -1,0 +1,25 @@
+name: 问题反馈（仅合成数据）
+description: 提供可复现步骤，帮助改进检索、整理和看板。
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: "请勿上传真实记忆、数据库、令牌、会话、客户资料或含私密内容的截图。许可证及贡献安排见 CONTRIBUTING.md。"
+  - type: textarea
+    id: expected
+    attributes:
+      label: 想完成的任务与期望结果
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 合成复现步骤与实际结果
+      description: 使用虚构正文；说明版本、平台、页面或接口，不粘贴真实请求日志。
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: 已验证与未验证
+      description: 分开报告单元测试、浏览器、真实向量后端与原生客户端。

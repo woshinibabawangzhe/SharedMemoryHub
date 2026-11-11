@@ -24,3 +24,22 @@ receipts/**/workspace/
 receipts/**/qdrant/
 receipts/**/browser-config.json
 receipts/**/current-live.json
+
+# Public collaboration: keep private data, journals and local imports off GitHub.
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.jsonl
+*.log
+*.pid
+*.pem
+*.key
+**/.local/
+**/source-snapshots/
+**/client_requests/
+.playwright-cli/
+docs/个人记忆试用状态-*.md
+docs/真实工作台与Codex资料复制-*.md
+scripts/copy_current_codex_memory.py

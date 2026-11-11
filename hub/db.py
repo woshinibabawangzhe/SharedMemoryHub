@@ -26,6 +26,7 @@ DEFAULT_LOCK_PATH = HUB_ROOT / "data" / "hub.lock"
 DEFAULT_SESSIONS_DIR = Path("E:/Harness运行区/Antigravity/state/sessions")
 
 DEFAULT_GENERATION = "v1"
+SCHEMA_VERSION = 600
 
 TOPIC_KEY_RE = re.compile(r"^[a-z0-9_.-]{3,80}$")
 
@@ -95,6 +96,10 @@ CREATE TABLE IF NOT EXISTS current_memory (
     host_constraints_json TEXT NOT NULL,
     source_type TEXT NOT NULL CHECK(source_type IN ('user_explicit','project_fact','verified_receipt','model_inference','task_state','admin_manual')),
     source_json TEXT NOT NULL,
+    domain_id TEXT,
+    tags_json TEXT NOT NULL DEFAULT '[]',
+    review_due_at TEXT,
+    last_reviewed_at TEXT,
     created_by_actor_id TEXT NOT NULL,
     created_in_session_id TEXT,
     expires_at TEXT,
@@ -149,6 +154,7 @@ CREATE TABLE IF NOT EXISTS requests (
     applied_revision INTEGER NOT NULL,
     status_code INTEGER NOT NULL,
     is_purged INTEGER NOT NULL DEFAULT 0 CHECK(is_purged IN (0, 1)),
+    result_json TEXT,
     created_at TEXT NOT NULL
 );
 
@@ -223,12 +229,48 @@ CREATE TABLE IF NOT EXISTS purge_tombstones (
     compact_done INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS source_redactions (
+    source_id TEXT PRIMARY KEY,
+    purged_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS hub_meta (
     meta_key TEXT PRIMARY KEY,
     meta_value_json TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS domains (
+    domain_id TEXT PRIMARY KEY, name TEXT NOT NULL, parent_id TEXT,
+    revision INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS source_versions (
+    source_id TEXT NOT NULL, revision INTEGER NOT NULL, title TEXT NOT NULL,
+    content TEXT NOT NULL, sha256 TEXT NOT NULL, original_sha256 TEXT,
+    original_path TEXT, registered_at TEXT NOT NULL, metadata_json TEXT NOT NULL,
+    PRIMARY KEY(source_id,revision)
+);
+CREATE TABLE IF NOT EXISTS source_links (
+    memory_id TEXT NOT NULL, source_id TEXT NOT NULL, source_revision INTEGER NOT NULL,
+    PRIMARY KEY(memory_id,source_id,source_revision)
+);
+CREATE TABLE IF NOT EXISTS saved_views (
+    view_id TEXT PRIMARY KEY, name TEXT NOT NULL, filters_json TEXT NOT NULL,
+    revision INTEGER NOT NULL DEFAULT 1
+);
 """
+
+
+from .drafts import DRAFT_SCHEMA_SQL, DraftsMixin  # noqa: E402
+from .related import RELATED_SCHEMA_SQL, RelatedMemoryMixin
+SCHEMA_SQL += DRAFT_SCHEMA_SQL + RELATED_SCHEMA_SQL
+
+
+def tombstone_digest(item):
+    if item.get('record_version') == 2:
+        body={k:v for k,v in item.items() if k!='entry_hash'}
+        return hashlib.sha256(json.dumps(body,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    return hashlib.sha256(f"{item['prev_hash']}:{item['seq']}:{item['memory_id']}:{item['purged_content_sha256']}".encode()).hexdigest()
 
 
 def norm_path_str(p: str | Path) -> str:
@@ -254,7 +296,7 @@ class _MemoryDatabaseBase:
         if not self._new_database:
             with closing(sqlite3.connect(f'file:{self.db_path.as_posix()}?mode=ro', uri=True)) as existing:
                 version = existing.execute('PRAGMA user_version').fetchone()[0]
-            if version != 300:
+            if version != SCHEMA_VERSION:
                 raise HubError(503, 'migration_required', '检测到旧 Schema；请显式迁移，服务不会自动改库。')
             if not self.tombstone_path.is_file():
                 raise HubError(503, 'missing_or_corrupted_purge_evidence', '已有数据库缺少墓碑，拒绝启动。')
@@ -282,7 +324,9 @@ class _MemoryDatabaseBase:
             con = self.connect()
             try:
                 con.executescript(SCHEMA_SQL)
-                con.execute('PRAGMA user_version=300')
+                con.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
+                for domain_id, name in [('personal','个人背景'),('communication','沟通协作'),('tools','工具环境'),('learning','学习与能力'),('projects','项目工作'),('organization','组织业务')]:
+                    con.execute('INSERT OR IGNORE INTO domains(domain_id,name) VALUES(?,?)',(domain_id,name))
                 con.execute("INSERT INTO memory_fts(memory_fts, rank) VALUES(?, ?)", ("secure-delete", 1))
                 now = utc_now_iso()
                 defaults = {
@@ -615,7 +659,7 @@ class _MemoryDatabaseBase:
                 if seq != idx or p_hash != prev_hash or not mem_id or not c_sha:
                     raise HubError(503, "missing_or_corrupted_purge_evidence", f"墓碑哈希链在第 {idx} 行断裂或篡改。")
 
-                calc_hash = hashlib.sha256(f"{prev_hash}:{seq}:{mem_id}:{c_sha}".encode("utf-8")).hexdigest()
+                calc_hash = tombstone_digest(item)
                 if e_hash != calc_hash:
                     raise HubError(503, "missing_or_corrupted_purge_evidence", f"墓碑第 {idx} 行 entry_hash 不匹配。")
 
@@ -727,9 +771,13 @@ from .admin_ops import AdminOperationsMixin  # noqa: E402
 from .operations import MemoryOperationsMixin  # noqa: E402
 from .purge_backup import PurgeAndBackupMixin  # noqa: E402
 from .search_reindex import SearchReindexMixin  # noqa: E402
+from .workbench import WorkbenchMixin  # noqa: E402
 
 
 class MemoryDatabase(
+    RelatedMemoryMixin,
+    DraftsMixin,
+    WorkbenchMixin,
     _MemoryDatabaseBase,
     MemoryOperationsMixin,
     AdminOperationsMixin,

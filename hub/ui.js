@@ -1,6 +1,8 @@
 "use strict";
 let csrfToken = "";
 let selected = null;
+let memoryLoadRevision = 0;
+let filterTimer;
 const el = id => document.getElementById(id);
 const show = value => { el("receiptBox").textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2); };
 const node = (tag, text, cls) => { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if (cls) n.className = cls; return n; };
@@ -48,7 +50,9 @@ async function mutate(m, action, body) {
   else { selected = null; el("detailPanel").replaceChildren(); }
 }
 async function loadMemories() {
+  const loadRevision = ++memoryLoadRevision;
   const d = await api(`/v1/admin/memories?query=${encodeURIComponent(el("filterQuery").value)}`);
+  if (loadRevision !== memoryLoadRevision) return;
   const list = el("memoryList"); list.replaceChildren();
   if (!d.items.length) list.append(node("p","暂无记忆"));
   for (const m of d.items) {
@@ -82,6 +86,7 @@ async function viewDetail(id) {
   const d = await api(`/v1/admin/memory/${encodeURIComponent(id)}/detail`); selected=d.item;
   const m = d.item, panel = el("detailPanel"); panel.replaceChildren();
   panel.append(node("h2",`编辑：${m.title} · r${m.revision}`));
+  if (m.confidence === "hypothesis") panel.append(node("p","这是历史或待核实资料。采纳只批准其适用范围，保留未确认状态；普通记忆检索不会把它作为当前事实。","badge conflict"));
   input(panel,"editTitle","标题",m.title); input(panel,"editContent","正文（纯文本）",m.content,true);
   for (const [field,label] of [["subject","主体"],["scope","适用范围"],["project_id","项目标识"],["kind","类别"],["topic_key","主题键"],["confidence","确认状态"],["expires_at","过期时间（ISO 格式）"]]) input(panel,`edit_${field}`,label,m[field]);
   input(panel,"edit_readers","可读取客户端（JSON 数组）",JSON.stringify(m.readers));
@@ -111,4 +116,10 @@ async function viewDetail(id) {
 }
 for (const [id, action] of [["loginButton",loginAdmin],["bindButton",bindProject],["createButton",createAdminMemory],["refreshButton",loadMemories]])
   el(id).addEventListener("click",()=>action().catch(e=>show(e.message)));
+el("filterQuery").addEventListener("input",()=>{
+  clearTimeout(filterTimer); ++memoryLoadRevision;
+  selected=null; el("detailPanel").replaceChildren();
+  el("memoryList").replaceChildren(node("p","正在筛选…"));
+  filterTimer=setTimeout(()=>loadMemories().catch(e=>show(e.message)),200);
+});
 refreshHealth();

@@ -37,7 +37,17 @@ class MemoryOperationsMixin:
             "has_open_conflict": bool(row["has_open_conflict"]),
             "source_type": row["source_type"],
             "source": json.loads(row["source_json"]),
+            "domain_id": row["domain_id"],
+            "tags": json.loads(row["tags_json"]),
+            "review_due_at": row["review_due_at"],
+            "last_reviewed_at": row["last_reviewed_at"],
         }
+
+    def _revision_metadata(self, con, row):
+        snapshot=self._row_to_metadata_snapshot(row)
+        snapshot['relations']=[dict(r) for r in con.execute('SELECT * FROM memory_relations WHERE memory_id=?',(row['memory_id'],))]
+        snapshot['source_links']=[dict(r) for r in con.execute('SELECT * FROM source_links WHERE memory_id=?',(row['memory_id'],))]
+        return snapshot
 
     def _check_row_authorized(
         self,
@@ -166,6 +176,10 @@ class MemoryOperationsMixin:
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
             "score": score,
+            "domain_id": row["domain_id"],
+            "tags": json.loads(row["tags_json"]),
+            "review_due_at": row["review_due_at"],
+            "last_reviewed_at": row["last_reviewed_at"],
             "authority_notice": "HISTORICAL_MEMORY_ONLY: 优先级低于安全规则、真实运行证据、当前用户指令与项目现行代码/配置",
         }
 
@@ -177,6 +191,7 @@ class MemoryOperationsMixin:
         payload: Dict[str, Any],
         bound_project_id: Optional[str] = None,
         bound_workspace_path: Optional[str] = None,
+        _con=None,
     ) -> Dict[str, Any]:
         with self._write_lock:
             self.check_not_reindexing()
@@ -201,7 +216,7 @@ class MemoryOperationsMixin:
             )
             body_hash = "sha256:" + hashlib.sha256(canonical_body.encode("utf-8")).hexdigest()
 
-            con = self.connect()
+            con = _con if _con is not None else self.connect()
             try:
                 existing_req = con.execute(
                     "SELECT * FROM requests WHERE request_key = ?",
@@ -319,7 +334,7 @@ class MemoryOperationsMixin:
                         actor_role == "agent_client"
                         and (scope in ("global", "user_global") or kind == "rule_candidate")
                     )
-                    init_state = "paused" if needs_approval else "active"
+                    init_state = "paused" if needs_approval or kind == 'rule_candidate' else "active"
                     init_locked = 1 if actor_role == "user_admin" else 0
                     init_conflict = 1 if needs_approval else 0
                     proposal_id = None
@@ -340,8 +355,11 @@ class MemoryOperationsMixin:
                         "source_type": source_type,
                         "source": source_dict,
                     }
+                    organization = self.validate_organization(payload)
+                    meta_snap.update(organization)
+                    meta_snap.update(relations=[],source_links=[],last_reviewed_at=None)
 
-                    con.execute("BEGIN IMMEDIATE")
+                    if _con is None:con.execute("BEGIN IMMEDIATE")
                     con.execute(
                         """
                         INSERT INTO current_memory(
@@ -377,6 +395,9 @@ class MemoryOperationsMixin:
                             now,
                         ),
                     )
+                    con.execute('UPDATE current_memory SET domain_id=?,tags_json=?,review_due_at=? WHERE memory_id=?',
+                        (organization['domain_id'],json.dumps(organization['tags'],ensure_ascii=False),organization['review_due_at'],new_mem_id))
+                    self._link_source(con,new_mem_id,source_dict)
                     if init_state == "active":
                         con.execute(
                             "INSERT INTO memory_fts(memory_id, title, content, topic_key) VALUES(?, ?, ?, ?)",
@@ -459,7 +480,7 @@ class MemoryOperationsMixin:
                             now,
                         ),
                     )
-                    con.execute("COMMIT")
+                    if _con is None:con.execute("COMMIT")
 
                     return {
                         "status": "paused_pending_approval" if needs_approval else "committed",
@@ -482,4 +503,4 @@ class MemoryOperationsMixin:
                     , incoming_session_id=incoming_session_id
                 )
             finally:
-                con.close()
+                if _con is None:con.close()

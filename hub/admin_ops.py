@@ -49,7 +49,7 @@ class AdminOperationsMixin:
                 actor_role, actor_id, payload, bound_workspace_path
             )
             proposal_id = f"prop_{uuid.uuid4().hex[:20]}"
-            meta_snap = self._row_to_metadata_snapshot(existing)
+            meta_snap = self._revision_metadata(con, existing)
             con.execute("BEGIN IMMEDIATE")
             con.execute(
                 "UPDATE current_memory SET has_open_conflict = 1, updated_at = ? WHERE memory_id = ?",
@@ -137,15 +137,16 @@ class AdminOperationsMixin:
             new_title = payload["title"].strip()
             new_content = payload["content"].strip()
             new_topic = (payload.get("topic_key") or existing["topic_key"]).strip()
-            meta_snap = self._row_to_metadata_snapshot(existing)
+            meta_snap = self._revision_metadata(con, existing)
             meta_snap["topic_key"] = new_topic
             meta_snap["confidence"] = eff_conf
             meta_snap["expires_at"] = eff_expires
             meta_snap['source_type'] = source_type
             meta_snap['source'] = source_dict
+            meta_snap.update(self.validate_organization(payload))
             for field in ('subject','scope','project_id','kind','readers','host_constraints'):
                 meta_snap[field] = payload[field]
-            if actor_role == 'agent_client' and any(meta_snap[k] != self._row_to_metadata_snapshot(existing)[k]
+            if actor_role == 'agent_client' and any(meta_snap[k] != self._revision_metadata(con, existing)[k]
                 for k in ('subject','scope','project_id','kind','readers','host_constraints')):
                 allow_direct_agent_modify = False
 
@@ -199,8 +200,16 @@ class AdminOperationsMixin:
                     "idempotent_replay": False,
                 }
 
+            if actor_role == 'user_admin':
+                # The management editor shares the same full-field validation,
+                # no-op handling and pending-proposal rebasing as draft acceptance.
+                result=self._admin_commit(dict(existing),{**meta_snap,'title':new_title,'content':new_content},curr_rev,'update',request_info=(req_key,body_hash),actor_id=actor_id)
+                saved=self._admin_row(mem_id)
+                result.update(effective_confidence=saved['confidence'],index_status=self.format_memory_item(saved)['index_status'],index_generation=active_gen,idempotent_replay=False)
+                return result
+
             new_rev = curr_rev + 1
-            new_locked = 1 if actor_role == "user_admin" else int(existing["locked"])
+            new_locked = int(existing["locked"])
             con.execute("BEGIN IMMEDIATE")
             con.execute(
                 """
@@ -224,6 +233,9 @@ class AdminOperationsMixin:
                 ),
             )
             con.execute("DELETE FROM memory_fts WHERE memory_id = ?", (mem_id,))
+            con.execute('UPDATE current_memory SET domain_id=?,tags_json=?,review_due_at=? WHERE memory_id=?',
+                (meta_snap['domain_id'],json.dumps(meta_snap['tags'],ensure_ascii=False),meta_snap['review_due_at'],mem_id))
+            self._link_source(con,mem_id,source_dict)
             if existing["state"] == "active":
                 con.execute(
                     "INSERT INTO memory_fts(memory_id, title, content, topic_key) VALUES(?, ?, ?, ?)",
@@ -292,7 +304,7 @@ class AdminOperationsMixin:
         if op == "soft_delete":
             if not allow_direct_agent_modify:
                 proposal_id = f"prop_{uuid.uuid4().hex[:20]}"
-                meta_snap = self._row_to_metadata_snapshot(existing)
+                meta_snap = self._revision_metadata(con, existing)
                 con.execute("BEGIN IMMEDIATE")
                 con.execute(
                     "UPDATE current_memory SET has_open_conflict = 1, updated_at = ? WHERE memory_id = ?",
@@ -342,7 +354,7 @@ class AdminOperationsMixin:
                 }
 
             new_rev = curr_rev + 1
-            meta_snap = self._row_to_metadata_snapshot(existing)
+            meta_snap = self._revision_metadata(con, existing)
             con.execute("BEGIN IMMEDIATE")
             con.execute(
                 "UPDATE current_memory SET revision = ?, state = 'deleted', updated_at = ? WHERE memory_id = ?",

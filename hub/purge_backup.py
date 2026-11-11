@@ -11,7 +11,7 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from .db import HubError, utc_now_iso
+from .db import HubError, utc_now_iso, tombstone_digest, SCHEMA_VERSION
 from .paths import checked_path
 
 
@@ -59,6 +59,17 @@ class PurgeAndBackupMixin:
             "purged_at": now,
             "actor_id": actor_id,
         }
+        con = self.connect()
+        try:
+            record['source_ids'] = [r[0] for r in con.execute('SELECT DISTINCT source_id FROM source_links WHERE memory_id=?',(memory_id,))]
+            record['record_version']=2
+            record['entity_type']='draft' if memory_id.startswith('draft_') else 'memory'
+            record['draft_ids']=[r[0] for r in con.execute('SELECT draft_id FROM memory_drafts WHERE draft_id=? OR target_memory_id=? OR result_memory_id=?',(memory_id,memory_id,memory_id))]
+            record['draft_ids']=sorted(set(record['draft_ids'])|{r[0] for r in con.execute('SELECT draft_id FROM draft_members WHERE memory_id=?',(memory_id,))})
+            record['draft_request_keys']=[dict(r) for did in record['draft_ids'] for r in con.execute('SELECT request_key,actor_id,body_hash,draft_id FROM draft_requests WHERE draft_id=?',(did,))]
+            record['entry_hash']=tombstone_digest(record)
+        finally:
+            con.close()
         line_bytes = (json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
         with open(self.tombstone_path, "ab") as f:
             f.write(line_bytes)
@@ -72,9 +83,26 @@ class PurgeAndBackupMixin:
         con = self.connect()
         try:
             con.execute("BEGIN IMMEDIATE")
+            draft_ids=set(item.get('draft_ids',[]))
+            draft_ids.update(r[0] for r in con.execute('SELECT draft_id FROM memory_drafts WHERE draft_id=? OR target_memory_id=? OR result_memory_id=?',(mem_id,mem_id,mem_id)))
+            draft_ids.update(r[0] for r in con.execute('SELECT draft_id FROM draft_members WHERE memory_id=?',(mem_id,)))
+            for did in draft_ids:
+                for table in ('memory_drafts','draft_versions','draft_suggestions','draft_members','draft_applications'):
+                    con.execute(f'DELETE FROM {table} WHERE draft_id=?',(did,))
+                con.execute('UPDATE draft_requests SET is_purged=1,result_json=NULL WHERE draft_id=?',(did,))
+            for request in item.get('draft_request_keys',[]):
+                con.execute("INSERT INTO draft_requests VALUES(?,?,?,?,NULL,1,?) ON CONFLICT(request_key) DO UPDATE SET is_purged=1,result_json=NULL",(request['request_key'],request['actor_id'],request['body_hash'],request['draft_id'],utc_now_iso()))
+            source_ids=set(item.get('source_ids',[]))
+            source_ids.update(r[0] for r in con.execute('SELECT source_id FROM source_links WHERE memory_id=?',(mem_id,)))
+            for sid in source_ids:
+                con.execute('INSERT OR IGNORE INTO source_redactions VALUES(?,?)',(sid,utc_now_iso()))
+                con.execute('DELETE FROM source_versions WHERE source_id=?',(sid,))
+            con.execute('DELETE FROM source_links WHERE memory_id=?',(mem_id,))
+            con.execute('DELETE FROM memory_relations WHERE memory_id=? OR target_id=?',(mem_id,mem_id))
+            con.execute('DELETE FROM duplicate_reviews WHERE members_json LIKE ?',('%'+mem_id+'%',))
             for table in ("current_memory", "memory_fts", "revisions", "conflict_proposals"):
                 con.execute(f"DELETE FROM {table} WHERE memory_id=?", (mem_id,))
-            con.execute("UPDATE requests SET is_purged=1,status_code=410 WHERE memory_id=?", (mem_id,))
+            con.execute("UPDATE requests SET is_purged=1,status_code=410,result_json=NULL WHERE memory_id=? OR EXISTS (SELECT 1 FROM json_each(requests.result_json, '$.memory_ids') WHERE value=?)", (mem_id,mem_id))
             for rk in item.get("request_keys", []):
                 con.execute("""INSERT INTO requests(request_key,actor_id,body_hash,memory_id,applied_revision,status_code,is_purged,created_at)
                     VALUES(?,?,'purged',?,0,410,1,?) ON CONFLICT(request_key) DO UPDATE SET is_purged=1,status_code=410""",
@@ -91,8 +119,8 @@ class PurgeAndBackupMixin:
     def _complete_purge(self, memory_id, qdrant_delete_cb=None):
         # Lock order everywhere: index boundary -> SQLite write boundary.
         with self._index_lock, self._write_lock:
-            vector_done = False
-            if qdrant_delete_cb:
+            vector_done = memory_id.startswith('draft_')
+            if qdrant_delete_cb and not memory_id.startswith('draft_'):
                 try:
                     vector_done = qdrant_delete_cb(memory_id) is True
                 except Exception:
@@ -149,7 +177,7 @@ class PurgeAndBackupMixin:
                     raise HubError(404,"memory_not_found","记忆不存在。")
                 if existing["revision"] != int(expected_revision):
                     raise HubError(409,"RevisionConflict","记忆已修改，请刷新修订号。")
-                keys = [r[0] for r in con.execute("SELECT request_key FROM requests WHERE memory_id=?",(memory_id,))]
+                keys = [r[0] for r in con.execute("SELECT request_key FROM requests WHERE memory_id=? OR EXISTS (SELECT 1 FROM json_each(requests.result_json, '$.memory_ids') WHERE value=?)",(memory_id,memory_id))]
                 digest = hashlib.sha256(f"{existing['title']}\n{existing['content']}".encode()).hexdigest()
             finally:
                 con.close()
@@ -236,7 +264,7 @@ class PurgeAndBackupMixin:
             raise HubError(404, "backup_not_found", f"未找到备份数据库文件: {bpath}")
 
         with closing(sqlite3.connect(f"file:{bpath.as_posix()}?mode=ro", uri=True)) as check:
-            if check.execute("PRAGMA user_version").fetchone()[0] != 300:
+            if check.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
                 raise HubError(503,"migration_required","备份须先显式迁移到当前 Schema。")
         with self._index_lock, self._write_lock:
             current_max_seq = int(self.get_meta("max_purge_seq", 0))

@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT=Path(__file__).absolute().parents[1];sys.path.insert(0,str(ROOT))
 from hub.paths import checked_path
-from hub.db import MemoryDatabase
+from hub.db import MemoryDatabase, SCHEMA_VERSION
 from hub.worker import SingleInstanceFileLock
 
 def digest(path):
@@ -19,7 +19,7 @@ def write_new(path,doc):
 def counts(db):
     with closing(sqlite3.connect(f'file:{db.as_posix()}?mode=ro',uri=True)) as con:
         if con.execute('PRAGMA integrity_check').fetchone()[0]!='ok':raise RuntimeError('sqlite_integrity_failed')
-        if con.execute('PRAGMA user_version').fetchone()[0]!=300:raise RuntimeError('migration_required')
+        if con.execute('PRAGMA user_version').fetchone()[0]!=SCHEMA_VERSION:raise RuntimeError('migration_required')
         return {name:con.execute('SELECT COUNT(*) FROM '+name).fetchone()[0] for name in ('current_memory','revisions','conflict_proposals','purge_tombstones','project_bindings')}
 
 def verify_bundle(bundle):
@@ -49,7 +49,7 @@ def backup(runtime,output):
         proof=stage.verify_and_reconcile_purge_registry()
         with closing(stage.connect()) as con:con.execute('PRAGMA wal_checkpoint(TRUNCATE)')
         manifest={'format':'smh-portable-data-v1','created_at':datetime.now(timezone.utc).isoformat(),
-            'schema':300,'service_version':'0.3.0','portability_revision':'0.1.0','source_runtime':str(runtime),
+            'schema':SCHEMA_VERSION,'service_version':'0.5.0','portability_revision':'0.1.0','source_runtime':str(runtime),
             'files':{name:digest(output/name) for name in ('memory_hub.db','purge_registry.jsonl')},
             'counts':counts(output/'memory_hub.db'),'max_purge_seq':proof['file_max_seq'],
             'credentials_included':False,'vectors_included':False,'encrypted':False,
