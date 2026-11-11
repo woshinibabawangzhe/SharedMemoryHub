@@ -82,6 +82,6 @@ def stop(a):
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('action',choices=['start','stop']);p.add_argument('--runtime',default=str(ROOT));p.add_argument('--port',type=int,default=8765)
     p.add_argument('--qdrant-port',type=int,default=6333);p.add_argument('--prefix',default='memories');p.add_argument('--device',choices=['cuda','cpu'],default='cuda')
-    p.add_argument('--python',help='明确的E盘解释器；不复制既有虚拟环境');p.add_argument('--model-dir',help='明确的E盘模型只读位置')
+    p.add_argument('--python',help='明确的解释器路径；外部资产需配置 SMH_ASSET_ROOT，不复制既有虚拟环境');p.add_argument('--model-dir',help='明确的模型只读位置；外部资产需配置 SMH_ASSET_ROOT')
     p.add_argument('--auth-dir',help='复用项目内已初始化认证目录')
     a=p.parse_args();print(json.dumps(start(a) if a.action=='start' else stop(a),ensure_ascii=False))

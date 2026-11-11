@@ -1,4 +1,5 @@
 """Browser regression for cross-section unsaved input, using only the synthetic service."""
+import os
 import argparse
 import json
 import re
@@ -18,8 +19,8 @@ def main():
     spec=json.loads((evidence/'live-spec.json').read_text(encoding='utf-8'))
     assert spec['data_kind']=='synthetic-only' and spec['prefix'].startswith('smh_drafts_060_')
     def run(*args):
-        p=subprocess.run(['D:/python/python.exe','-X','utf8','-B',
-            'C:/Users/ZhuanZ/.codex/skills/playwright-cli/scripts/browser.py','--session','smh-drafts-060',*args],
+        p=subprocess.run([sys.executable,'-X','utf8','-B',
+            os.environ['SMH_BROWSER_LAUNCHER'],'--session','smh-drafts-060',*args],
             cwd=ROOT,capture_output=True,text=True,encoding='utf-8',timeout=45)
         with (evidence/'browser-unsaved-actions.log').open('a',encoding='utf-8') as stream:
             stream.write('\nCOMMAND '+json.dumps(args,ensure_ascii=False)+'\n'+p.stdout+'\n'+p.stderr)

@@ -21,7 +21,7 @@ class Workbench(unittest.TestCase):
         self.db.register_project_binding('fixture',self.ws)
 
     def payload(self,**changes):
-        p={'operation':'create','request_key':uuid.uuid4().hex,'scope':'project','subject':'user','workspace_path':str(self.ws),'title':'中文检索路径','content':'中文短词：代理。路径 E:/合成资料/正文.md。','domain_id':'tools','tags':['合成'],
+        p={'operation':'create','request_key':uuid.uuid4().hex,'scope':'project','subject':'user','workspace_path':str(self.ws),'title':'中文检索路径','content':'中文短词：代理。路径 synthetic-docs/正文.md。','domain_id':'tools','tags':['合成'],
            'source':{'origin_type':'user_explicit','session_id':'fixture-040','evidence_ref':'合成用户明确陈述，仅用于验收。'}}
         p.update(changes);return p
 
@@ -63,7 +63,7 @@ class Workbench(unittest.TestCase):
         self.assertEqual(len(b['items']),3)
         self.assertFalse({x['memory_id'] for x in a['items']}&{x['memory_id'] for x in b['items']})
         with self.assertRaises(HubError):self.db.workbench_list({'query':'其他'},cursor=a['next_cursor'],limit=25)
-        self.assertEqual(self.db.workbench_list({'query':'E:/合成资料/正文.md'})['total'],28)
+        self.assertEqual(self.db.workbench_list({'query':'synthetic-docs/正文.md'})['total'],28)
         self.assertEqual(self.db.workbench_list({'query':'无答案短词'})['total'],0)
 
     def test_full_metadata_undo_restore(self):

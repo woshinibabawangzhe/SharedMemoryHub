@@ -3,7 +3,7 @@ import argparse,contextlib,hashlib,http.server,importlib.util,io,json,os,socket,
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT));sys.path.insert(0,str(ROOT/'tests'))
 from phase1b_live_control import admin_client,readmeta
-ADAPTER=Path('C:/Users/ZhuanZ/.codex/tools/shared-memory-hub/cli.py')
+ADAPTER=Path(os.environ['SMH_CODEX_ADAPTER'])
 spec=importlib.util.spec_from_file_location('adapter',ADAPTER);adapter=importlib.util.module_from_spec(spec);spec.loader.exec_module(adapter)
 
 def main():

@@ -4,14 +4,16 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import shutil
 import threading
 import time
 
 ROOT=Path(__file__).resolve().parents[1]
-CODEX=Path('C:/Users/ZhuanZ/AppData/Roaming/npm/codex.cmd')
+CODEX = os.environ.get('SMH_CODEX_EXECUTABLE') or shutil.which('codex')
 
 
 def main():
+    if not CODEX: raise SystemExit("Codex executable not found; set SMH_CODEX_EXECUTABLE explicitly.")
     p=argparse.ArgumentParser();p.add_argument('--evidence',type=Path,required=True);p.add_argument('--name',required=True);p.add_argument('--prompt-file',type=Path,required=True);a=p.parse_args()
     evidence=a.evidence.absolute()
     if not evidence.is_relative_to(ROOT/'receipts'):raise RuntimeError('invalid_evidence_root')

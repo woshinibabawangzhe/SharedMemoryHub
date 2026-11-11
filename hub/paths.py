@@ -1,27 +1,39 @@
-"""本项目写入边界；拒绝重解析点，不隐式改写路径。"""
+"""Portable asset and write boundaries; reject links and implicit path rewrites."""
 from pathlib import Path
 import os
 
 PROJECT_ROOT = Path(os.path.abspath(__file__)).parents[1]
 
 
-def checked_asset(value):
-    """共享的模型/解释器只读入口；不授予项目外写入权限。"""
-    p = Path(os.path.abspath(value))
-    if os.name == 'nt' and not p.is_relative_to(Path('E:/AI运行区')):
-        raise ValueError('asset_outside_approved_runtime')
-    for ancestor in (p, *p.parents):
-        if ancestor.exists() and (ancestor.is_symlink() or ancestor.is_junction()):
+def _without_links(path):
+    for ancestor in (path, *path.parents):
+        if ancestor.is_symlink() or (hasattr(ancestor, 'is_junction') and ancestor.is_junction()):
             raise ValueError('reparse_point_forbidden')
+    return path
+
+
+def checked_asset(value):
+    """Read-only assets live in the checkout or one explicitly configured root."""
+    p = _without_links(Path(os.path.abspath(value)))
+    roots = [PROJECT_ROOT]
+    configured = os.environ.get('SMH_ASSET_ROOT')
+    if configured:
+        asset_root = Path(configured)
+        if not asset_root.is_absolute():
+            raise ValueError('invalid_asset_root')
+        asset_root = Path(os.path.abspath(asset_root))
+        if asset_root == Path(asset_root.anchor):
+            raise ValueError('invalid_asset_root')
+        roots.append(_without_links(asset_root))
+    if not any(p.is_relative_to(allowed) for allowed in roots):
+        raise ValueError('asset_outside_approved_runtime')
     return p
 
 
 def checked_path(value):
-    checked_asset(PROJECT_ROOT)
-    p = Path(os.path.abspath(value))
+    """All writes stay inside the actual checkout, regardless of its drive."""
+    _without_links(PROJECT_ROOT)
+    p = _without_links(Path(os.path.abspath(value)))
     if not p.is_relative_to(PROJECT_ROOT):
         raise ValueError('path_outside_shared_memory_hub')
-    for ancestor in (p, *p.parents):
-        if ancestor.exists() and (ancestor.is_symlink() or ancestor.is_junction()):
-            raise ValueError('reparse_point_forbidden')
     return p

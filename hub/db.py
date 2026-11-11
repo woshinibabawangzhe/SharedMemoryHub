@@ -23,7 +23,7 @@ DEFAULT_EXPORTS_DIR = HUB_ROOT / "exports"
 DEFAULT_BACKUPS_DIR = HUB_ROOT / "backups"
 DEFAULT_CONFIG_DIR = HUB_ROOT / "config"
 DEFAULT_LOCK_PATH = HUB_ROOT / "data" / "hub.lock"
-DEFAULT_SESSIONS_DIR = Path("E:/Harness运行区/Antigravity/state/sessions")
+DEFAULT_SESSIONS_DIR = HUB_ROOT / "source-snapshots" / "sessions"
 
 DEFAULT_GENERATION = "v1"
 SCHEMA_VERSION = 600
@@ -340,7 +340,6 @@ class _MemoryDatabaseBase:
                         "shared",
                         "antigravity",
                         "codex",
-                        "user:zhuanz",
                         "user:synthetic_test",
                     ],
                     "project_registry": {},
@@ -441,8 +440,8 @@ class _MemoryDatabaseBase:
         reg: Dict[str, str] = self.get_meta("project_registry", {})
         candidate_paths: List[str] = []
 
-        if session_id_header:
-            ctx_file = DEFAULT_SESSIONS_DIR / session_id_header / "context.json"
+        if session_id_header and re.fullmatch(r"[A-Za-z0-9_-]{1,160}", session_id_header):
+            ctx_file = checked_path(DEFAULT_SESSIONS_DIR / session_id_header / "context.json")
             if ctx_file.is_file():
                 try:
                     ctx_data = json.loads(ctx_file.read_text(encoding="utf-8"))
@@ -564,7 +563,7 @@ class _MemoryDatabaseBase:
                     else:
                         cand_path = HUB_ROOT / cand_path
                 real_cand = norm_path_str(cand_path)
-                allowed_roots = [norm_path_str(HUB_ROOT), norm_path_str("E:/Harness运行区")]
+                allowed_roots = [norm_path_str(HUB_ROOT)]
                 if bound_workspace_path:
                     allowed_roots.append(norm_path_str(bound_workspace_path))
 

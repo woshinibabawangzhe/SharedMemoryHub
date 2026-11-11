@@ -36,7 +36,7 @@ def setup():
     source=d.register_source_snapshot('fixture-040-source','合成来源 · 管理闭环','合成资料，不包含个人信息。\nHTML样文本 <img src=x onerror=alert(1)> 必须按纯文本呈现。')
     ids=[]
     for i in range(30):
-        p={'request_key':f'fixture040-record-{i}','operation':'create','subject':'user','scope':'user_global','kind':'fact','domain_id':'tools','tags':['合成验收'],'title':f'合成档案 {i:02d}｜代理与工具','content':f'第{i}条合成正文。代理配置只描述无敏感背景。路径 E:/合成资料/正文.md。\n<img src=x onerror=alert(1)>','source':{'origin_type':'admin_manual',**source}}
+        p={'request_key':f'fixture040-record-{i}','operation':'create','subject':'user','scope':'user_global','kind':'fact','domain_id':'tools','tags':['合成验收'],'title':f'合成档案 {i:02d}｜代理与工具','content':f'第{i}条合成正文。代理配置只描述无敏感背景。路径 synthetic-docs/正文.md。\n<img src=x onerror=alert(1)>','source':{'origin_type':'admin_manual',**source}}
         ids.append(d.write_memory('user_admin','user','web_ui',p)['memory_id'])
     p={'request_key':'fixture040-proposal','operation':'create','subject':'user','scope':'user_global','kind':'preference','domain_id':'communication','title':'合成偏好｜等待人工批准','content':'合成建议正文：喜欢简体中文。','source':{'origin_type':'user_explicit','session_id':'synthetic-fixture-040','evidence_ref':'合成明确原话，仅供验收。'}}
     proposal=d.write_memory('agent_client','codex','codex',p)

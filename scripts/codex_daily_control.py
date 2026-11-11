@@ -49,7 +49,7 @@ def ready_health():
 
 def control(action):
     checked_path(RUNTIME)
-    if not (RUNTIME/'config/admin_auth.json').is_file():raise RuntimeError('请先双击“初始化Codex记忆中心.cmd”设置口令；不会读取或重置旧认证。')
+    if not (RUNTIME/'config/admin_auth.json').is_file():raise RuntimeError('请先用 scripts/setup_admin.py --runtime <实例目录> 在终端初始化口令；不会读取或重置已有认证。')
     profile=json.loads((RUNTIME/'profile.json').read_text(encoding='utf-8-sig'))
     if not profile.get('enabled') or Path(profile['runtime_root']).absolute()!=RUNTIME or profile['base_url']!='http://127.0.0.1:8765':raise RuntimeError('daily_profile_not_activated')
     state=container_state()
