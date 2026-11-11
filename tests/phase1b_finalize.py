@@ -2,7 +2,7 @@
 import argparse,calendar,hashlib,json,os,shutil,socket,subprocess,sys
 from datetime import datetime,timezone
 from pathlib import Path
-ROOT=Path(__file__).resolve().parents[1];HOME=Path('C:/Users/ZhuanZ/.codex');sys.path.insert(0,str(ROOT))
+ROOT=Path(__file__).resolve().parents[1];HOME=Path(os.environ['SMH_CODEX_HOME']);sys.path.insert(0,str(ROOT))
 from hub.paths import checked_path
 
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
@@ -70,7 +70,7 @@ def main():
         doc=json.loads(proc.stdout);write(e/(name+'.json'),{'exit_code':proc.returncode,'result':doc});assert proc.returncode==0 and doc['status']=='verified',name;validators[name]=doc
     code_files=[*sorted((HOME/'tools/shared-memory-hub').glob('*')),HOME/'AGENTS.md',HOME/'关联规则索引.md',HOME/'scripts/verify_protocol_adaptation.py',HOME/'manifests/harness.json',HOME/'manifests/external-deployments.json',HOME/'manifests/environment-dependencies.json',HOME/'README.md',HOME/'docs/恢复与验收.md',HOME/'checksums.json',ROOT/'docs/客户端调用规范.md',ROOT/'design/2026-11-07/共同实施规格书-1B接入补充-v0.3.1.md',ROOT/'使用与启停-1B-Codex-v0.1.0.md',ROOT/'runtime/.gitignore',ROOT/'receipts/.gitignore']
     code_files += [ROOT/'scripts'/name for name in ['initialize_codex.py','initialize_codex.ps1','codex_daily_control.py']]
-    code_files += [ROOT/name for name in ['初始化Codex记忆中心.cmd','启动Codex记忆中心.cmd','停止Codex记忆中心.cmd']]
+    code_files += [ROOT/name for name in ['scripts/setup_admin.py','scripts/serve_hub.py','scripts/runtime_control.py']]
     code_files += list(sorted((ROOT/'tests').glob('*1b*.py')))+[ROOT/'tests/test_codex_adapter_010.py']
     hashes={str(file):sha(file) for file in code_files if file.is_file()}
     trace_hashes={str(file.relative_to(e)):sha(file) for folder in ['native-discovery','native-discovery-design','native-write-latest','native-offline','browser'] for file in sorted((e/folder).glob('*')) if file.is_file()}

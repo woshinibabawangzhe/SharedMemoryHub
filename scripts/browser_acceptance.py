@@ -1,8 +1,9 @@
 """复用已安装浏览器技能的 prepare 校验；按用户约束将本任务输出放到项目内。"""
+import os
 import argparse,importlib.util,json,subprocess,sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
-launcher=Path('C:/Users/ZhuanZ/.codex/skills/playwright-cli/scripts/browser.py')
+launcher=Path(os.environ['SMH_BROWSER_LAUNCHER'])
 spec=importlib.util.spec_from_file_location('approved_browser_launcher',launcher)
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 if __name__=='__main__':

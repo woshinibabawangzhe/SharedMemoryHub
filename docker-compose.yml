@@ -13,4 +13,4 @@ services:
       - QDRANT__SERVICE__GRPC_PORT=6334
       - QDRANT__LOG_LEVEL=INFO
     volumes:
-      - E:/AI运行区/SharedMemoryHub/data/qdrant:/qdrant/storage
+      - ./data/qdrant:/qdrant/storage

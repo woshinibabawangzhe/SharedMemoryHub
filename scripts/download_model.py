@@ -1,4 +1,4 @@
-"""Downloads pinned Qwen/Qwen3-Embedding-0.6B into E:\\AI运行区\\SharedMemoryHub\\models\\Qwen3-Embedding-0.6B."""
+"""Download the pinned model into the checkout models/Qwen3-Embedding-0.6B directory."""
 from __future__ import annotations
 
 import os

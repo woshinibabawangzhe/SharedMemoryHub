@@ -1,4 +1,5 @@
 """仅经已登记浏览器启动器操作合成实例；不使用CDP、JS求值或认证导入。"""
+import os
 import argparse
 import json
 import re
@@ -13,9 +14,9 @@ from hub.paths import checked_path
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--evidence',type=Path,required=True);args=parser.parse_args()
     evidence=checked_path(args.evidence);transcript=evidence/'browser-actions.log';results=[]
-    launcher=Path('C:/Users/ZhuanZ/.codex/skills/playwright-cli/scripts/browser.py')
+    launcher=Path(os.environ['SMH_BROWSER_LAUNCHER'])
     def run(*args):
-        proc=subprocess.run(['D:/python/python.exe','-X','utf8','-B',str(launcher),'--session','smh-drafts-060',*args],cwd=ROOT,capture_output=True,text=True,encoding='utf-8',timeout=45)
+        proc=subprocess.run([sys.executable,'-X','utf8','-B',str(launcher),'--session','smh-drafts-060',*args],cwd=ROOT,capture_output=True,text=True,encoding='utf-8',timeout=45)
         with transcript.open('a',encoding='utf-8') as log:log.write('\nCOMMAND '+json.dumps(args,ensure_ascii=False)+'\n'+proc.stdout+'\n'+proc.stderr)
         if proc.returncode or '### Error' in proc.stdout:raise RuntimeError(proc.stdout+proc.stderr)
         return proc.stdout

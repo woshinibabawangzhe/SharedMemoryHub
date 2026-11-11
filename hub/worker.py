@@ -15,7 +15,7 @@ from .embedder import EmbeddingEngine, QdrantManager
 class SingleInstanceFileLock:
     """
     OS-level non-blocking file lock using msvcrt.locking on Windows (or fcntl on POSIX)
-    at E:\\AI运行区\\SharedMemoryHub\\data\\hub.lock (§4.4).
+    at the selected runtime data/hub.lock (§4.4).
     """
 
     def __init__(self, lock_path: Path = DEFAULT_LOCK_PATH):

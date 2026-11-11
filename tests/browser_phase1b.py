@@ -1,11 +1,12 @@
 """按既有已核验浏览器启动器运行1B独立浏览器会话。"""
+import os
 import importlib.util
 from pathlib import Path
 import subprocess
 import sys
 
 ROOT=Path(__file__).resolve().parents[1]
-spec=importlib.util.spec_from_file_location('approved_browser','C:/Users/ZhuanZ/.codex/skills/playwright-cli/scripts/browser.py')
+spec=importlib.util.spec_from_file_location('approved_browser',os.environ['SMH_BROWSER_LAUNCHER'])
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 if __name__=='__main__':
     command,env,workspace,output=module.prepare('smh-phase1b-4a8400a659',sys.argv[1:],config_path=ROOT/'receipts/v0.3.0-implementation/browser-config.json')

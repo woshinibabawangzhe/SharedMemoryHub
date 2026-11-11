@@ -1,5 +1,6 @@
 """新正式根的只读冒烟与有界启停；不创建合成记忆。"""
 import argparse,importlib.util,json,subprocess,sys,time
+import os
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
 from clients.memory_cli import call_hub
@@ -13,7 +14,7 @@ if __name__=='__main__':
     warm=call_hub('POST','/v1/memory/search',client_name='codex',payload={'workspace_path':str(ROOT),'query':'SharedMemoryHub Codex 接入','limit':5},base_url=profile['base_url'],timeout_sec=90,tokens_path=runtime/'config/client_tokens.json')
     assert warm.get('http_status')==200 and warm.get('bound_project_id')=='proj_shared_memory_hub',warm
     warm_seconds=round(time.monotonic()-started,3)
-    adapter=Path('C:/Users/ZhuanZ/.codex/tools/shared-memory-hub/cli.py')
+    adapter=Path(os.environ['SMH_CODEX_ADAPTER'])
     result=subprocess.run([sys.executable,'-X','utf8','-B',str(adapter),'--workspace',str(ROOT),'search','--query','Codex 接入'],capture_output=True,text=True,encoding='utf-8',timeout=20)
     normal=json.loads(result.stdout);assert result.returncode==0 and normal.get('bound_project_id')=='proj_shared_memory_hub',normal
     import httpx

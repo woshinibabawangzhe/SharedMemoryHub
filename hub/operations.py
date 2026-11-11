@@ -60,7 +60,7 @@ class MemoryOperationsMixin:
     ) -> bool:
         allowed_subjects = self.get_meta(
             "allowed_subjects",
-            ["user", "project", "shared", "antigravity", "codex", "user:zhuanz", "user:synthetic_test"],
+            ["user", "project", "shared", "antigravity", "codex", "user:synthetic_test"],
         )
         subj = row["subject"]
         if subj not in allowed_subjects:
@@ -279,7 +279,7 @@ class MemoryOperationsMixin:
                 subject = (payload.get("subject") or "project").strip()
                 allowed_subjects = self.get_meta(
                     "allowed_subjects",
-                    ["user", "project", "shared", "antigravity", "codex", "user:zhuanz", "user:synthetic_test"],
+                    ["user", "project", "shared", "antigravity", "codex", "user:synthetic_test"],
                 )
                 if subject not in allowed_subjects:
                     raise HubError(403, "forbidden_subject", f"未授权的 subject: {subject}")

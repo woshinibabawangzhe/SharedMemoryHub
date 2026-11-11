@@ -2,8 +2,7 @@
   "version": "0.1.0",
   "service_version": "0.6.0",
   "workbench_version": "0.7.0",
-  "portability_revision": "0.1.0",
-  "codex_adapter_version": "0.1.1",
+  "portability_revision": "0.2.0",
   "repository": "woshinibabawangzhe/SharedMemoryHub",
   "platform": "Windows x64 / Python 3.13",
   "python_observed": "3.13.9",
@@ -29,6 +28,7 @@
   ],
   "schema_version": 600,
   "manual_workbench_runtime": "runtime/personal-0.4.0",
-  "harness_center_routing": "paused",
-  "help_source": "docs/使用与系统说明.md"
+  "harness_center_routing": "operator_managed",
+  "help_source": "docs/使用与系统说明.md",
+  "public_docs_revision": "0.2.0"
 }

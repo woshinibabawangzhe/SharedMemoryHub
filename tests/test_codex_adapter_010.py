@@ -15,11 +15,10 @@ import uuid
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-ADAPTER = Path('C:/Users/ZhuanZ/.codex/tools/shared-memory-hub/cli.py')
-# Historical Harness integration is paused. Absence is an explicit unverified
-# integration, not a reason to recreate a retired user control asset.
-if not ADAPTER.is_file():
-    raise unittest.SkipTest('历史Codex适配入口已停用且不存在；本轮不恢复，真实Harness接入未验证。')
+ADAPTER = Path(os.environ['SMH_CODEX_ADAPTER']) if os.environ.get('SMH_CODEX_ADAPTER') else None
+# Optional host adapter: never discover or create personal control assets.
+if ADAPTER is None or not ADAPTER.is_file():
+    raise unittest.SkipTest('未显式配置可用的 SMH_CODEX_ADAPTER；可选宿主适配测试未运行。')
 spec = importlib.util.spec_from_file_location('codex_memory_adapter', ADAPTER)
 adapter = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(adapter)
